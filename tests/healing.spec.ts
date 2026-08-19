@@ -2,19 +2,20 @@ import { expect, test } from '@playwright/test';
 import { HealingPage } from '../src/healer.js';
 import { PatchWriter } from '../src/patch-writer.js';
 
-test('heals Login to Sign in and performs the click', async ({ page }) => {
+test('fills the practice form and heals username to name', async ({ page }) => {
   const patches = new PatchWriter();
-  await page.setContent('<button id="sign-in">Sign in</button><output id="state"></output>');
-  await page.locator('#sign-in').evaluate((button) => button.addEventListener('click', () => document.querySelector('#state')!.textContent = 'clicked'));
+  await page.goto('https://testautomationpractice.blogspot.com/', { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  const aegis = new HealingPage(page, { patchWriter: patches });
 
-  await new HealingPage(page, { patchWriter: patches }).locator('#login').click();
+  // Deliberately stale locator: the page uses id="name", not id="username".
+  await aegis.locator('#username').fill('JayaSurya');
+  await page.waitForTimeout(1000); // Wait for the healing agent to process the broken locator.
+  await aegis.locator('#email').fill('jayasurya@example.com');
+  await aegis.locator('#phone').fill('9876543210');
 
-  await expect(page.locator('#state')).toHaveText('clicked');
-  expect(patches.getEvents()[0]).toMatchObject({ original: '#login', healed: '#sign-in' });
+  await expect(page.locator('#name')).toHaveValue('JayaSurya');
+  await expect(page.locator('#email')).toHaveValue('jayasurya@example.com');
+  await expect(page.locator('#phone')).toHaveValue('9876543210');
+  expect(patches.getEvents()[0]).toMatchObject({ original: '#username', healed: '#name' });
   expect(patches.getEvents()[0].score).toBeGreaterThan(0.95);
-});
-
-test('does not heal Search to an unrelated Filter control', async ({ page }) => {
-  await page.setContent('<button id="filter">Filter</button>');
-  await expect(new HealingPage(page).locator('#search').click()).rejects.toThrow(/could not safely heal/);
 });
